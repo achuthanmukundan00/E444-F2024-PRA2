@@ -3,7 +3,7 @@ from flask_bootstrap import Bootstrap
 from flask_moment import Moment
 from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField
-from wtforms.validators import DataRequired
+from wtforms.validators import DataRequired, Email, ValidationError
 from datetime import datetime, timezone
 import secrets
 
@@ -13,38 +13,46 @@ app.config['SECRET_KEY'] = secrets.token_hex(32)
 bootstrap = Bootstrap(app)
 moment = Moment(app)
 
-class NameForm(FlaskForm):
+class Form(FlaskForm):
     name = StringField('What is your name?', validators=[DataRequired()])
+    email = StringField('What is your UofT Email address?', validators=[DataRequired(), Email()])
     submit = SubmitField('Submit')
 
+    def validate_email(self, field):
+        if 'utoronto' not in field.data:
+            raise ValidationError('Email must be a University of Toronto address.')
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    form = NameForm()
+    form = Form()
+    
     if form.validate_on_submit():
-        old_name = session.get('name')
-        if old_name is not None and old_name != form.name.data:
-            flash('Looks like you have changed your name!')
         session['name'] = form.name.data
+        session['email'] = form.email.data
+        flash('Form submitted successfully!')
         return redirect(url_for('index'))
+    
     return render_template('user.html',
-                           form=form, 
+                           form=form,
                            name=session.get('name'), 
-                           current_time = datetime.now(timezone.utc))
+                           email=session.get('email'),
+                           current_time=datetime.now(timezone.utc))
 
 @app.route('/user/<name>', methods=['GET', 'POST'])
 def user(name):
-    form = NameForm()
+    form = Form()
+    
     if form.validate_on_submit():
-        old_name = session.get('name')
-        if old_name is not None and old_name != form.name.data:
-            flash('Looks like you have changed your name!')
         session['name'] = form.name.data
+        session['email'] = form.email.data
+        flash('Form submitted successfully!')
         return redirect(url_for('index'))
+    
     return render_template('user.html', 
-                           form=form, 
+                           form=form,
                            name=session.get('name'), 
-                           current_time = datetime.now(timezone.utc))
+                           email=session.get('email'),
+                           current_time=datetime.now(timezone.utc))
 
 @app.errorhandler(404)
 def page_not_found(e):
